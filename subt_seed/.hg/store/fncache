@@ -1,0 +1,8 @@
+data/docker/subt_solution/run_solution.bash.i
+data/docker/build.bash.i
+data/package.xml.i
+data/docker/subt_solution/Dockerfile.i
+data/launch/x1.launch.i
+data/src/subt_seed_node.cc.i
+data/docker/run.bash.i
+data/CMakeLists.txt.i
