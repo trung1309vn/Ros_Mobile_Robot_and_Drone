@@ -82,8 +82,6 @@ class Controller
   private: double current_height{0.0};
 
   private: int count{0};
-
-  private: bool state_change{true};
 };
 
 /////////////////////////////////////////////////
@@ -208,16 +206,7 @@ not available.");
   {
       this->current_height = height;
       msg.linear.z = linVel_cur + this->linVel;
-      if (this->state_change)
-      {
-        msg.linear.x = -0.0495;        	
-        this->state_change = false;
-      }
-      else
-      {
-        msg.linear.x = 0.0;
-	this->state_change = true;
-      }
+      msg.linear.x = -0.0495;        	
 
       if (height < 5.0)
       {
