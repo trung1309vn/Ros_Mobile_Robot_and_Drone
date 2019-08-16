@@ -160,7 +160,7 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    this->client->SendTo("Hello from " + this->name);
+    this->client->SendTo("Hello from " + this->name, "X1");
     this->lastMsgSentTime = now;
   }
 
@@ -207,9 +207,9 @@ not available.");
       this->current_height = height;
       msg.linear.z = linVel_cur + this->linVel;
       if (height < 5.0)
-        this->linVel += 0.5;
+        this->linVel += 0.05;
       else
-        this->linVel -= 0.5;
+        this->linVel -= 0.05;
   }
   this->velPub.publish(msg);
 }
