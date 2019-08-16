@@ -160,10 +160,10 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    // Here, we are assuming that the robot names are "X1" and "X2".
+    // Here, we are assuming that the robot names are "X1" and "X3".
     if (this->name == "X1")
     {
-      this->client->SendTo("Hello from " + this->name, "X2");
+      this->client->SendTo("Hello from " + this->name, "X3");
     }
     else
     {
@@ -196,30 +196,30 @@ not available.");
   geometry_msgs::Twist msg;
 
     // Height
-    double height = pose.position.z;
-    double linVel_cur = 14.0;
+  double height = pose.position.z;
+  double linVel_cur = 14.0;
 
-    if (abs(height - this->current_height) <= 0.1 && this->current_height >= 5.0)
-    {
-        this->count += 1;
-        if (this->count >= 10)
-        {
-            msg.linear.x = 0;
-            msg.angular.z = 0;
-            this->arrived = true;
-            ROS_INFO("Arrived at entrance!");
-        }
-    }
-    else
-    {
-        this->current_height = height;
-        msg.linear.z = linVel_cur + this->linVel;
-        if (height < 5.0)
-            this->linVel += 0.5;
-        else
-            this->linVel -= 0.5;
-    }
-    this->velPub.publish(msg);
+  if (abs(height - this->current_height) <= 0.1 && this->current_height >= 5.0)
+  {
+      this->count += 1;
+      if (this->count >= 10)
+      {
+        msg.linear.x = 0;
+        msg.angular.z = 0;
+        this->arrived = true;
+        ROS_INFO("Arrived at entrance!");
+      }
+  }
+  else
+  {
+      this->current_height = height;
+      msg.linear.z = linVel_cur + this->linVel;
+      if (height < 5.0)
+        this->linVel += 0.5;
+      else
+        this->linVel -= 0.5;
+  }
+  this->velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
