@@ -210,7 +210,7 @@ not available.");
       msg.linear.z = linVel_cur + this->linVel;
       if (this->state_change)
       {
-        msg.linear.x = -0.495;        	
+        msg.linear.x = -0.0495;        	
         this->state_change = false;
       }
       else
