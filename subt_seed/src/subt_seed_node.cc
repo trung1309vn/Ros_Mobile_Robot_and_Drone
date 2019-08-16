@@ -160,15 +160,7 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    // Here, we are assuming that the robot names are "X1" and "X3".
-    if (this->name == "X1")
-    {
-      this->client->SendTo("Hello from " + this->name, "X3");
-    }
-    else
-    {
-      this->client->SendTo("Hello from " + this->name, "X1");
-    }
+    this->client->SendTo("Hello from " + this->name);
     this->lastMsgSentTime = now;
   }
 
