@@ -220,8 +220,10 @@ not available.");
       }
 
       if (height < 5.0)
+      {
 	if (this->linVel < 1.0)
           this->linVel += 0.05;
+      }
       else
         this->linVel -= 0.05;
   }
