@@ -82,8 +82,6 @@ class Controller
   private: double current_height{0.0};
 
   private: int count{0};
-
-  private: bool arrived{false};
 };
 
 /////////////////////////////////////////////////
