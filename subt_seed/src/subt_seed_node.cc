@@ -76,12 +76,6 @@ class Controller
 
   /// \brief Name of this robot.
   private: std::string name;
-
-  private: double linVel{0.0};
-
-  private: double current_height{0.0};
-
-  private: int count{0};
 };
 
 /////////////////////////////////////////////////
@@ -160,7 +154,15 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    this->client->SendTo("Hello from " + this->name, "X1");
+    // Here, we are assuming that the robot names are "X1" and "X3".
+    if (this->name == "X3")
+    {
+      this->client->SendTo("Hello from " + this->name, "X1");
+    }
+    else
+    {
+      this->client->SendTo("Hello from " + this->name, "X3");
+    }
     this->lastMsgSentTime = now;
   }
 
@@ -187,35 +189,110 @@ not available.");
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
 
-    // Height
-  double height = pose.position.z;
-  double linVel_cur = 14.0;
+  // Distance to goal
+  double dist = pose.position.x * pose.position.x +
+    pose.position.y * pose.position.y;
 
-  if (abs(height - this->current_height) <= 0.1 && this->current_height >= 5.0)
+  // Arrived
+  if (dist < 0.3 || pose.position.x >= -0.3)
   {
-      this->count += 1;
-      if (this->count >= 10)
-      {
-        msg.linear.x = 0;
-        msg.angular.z = 0;
-        this->arrived = true;
-        ROS_INFO("Arrived at entrance!");
-      }
+    msg.linear.x = 0;
+    msg.linear.z = 0;
+    msg.angular.z = 0;
+    this->arrived = true;
+    ROS_INFO("Arrived at entrance!");
+
+    // Report an artifact
+    // Hardcoded to tunnel_circuit_practice_01's exginguisher_3
+    subt::msgs::Artifact artifact;
+    artifact.set_type(static_cast<uint32_t>(subt::ArtifactType::TYPE_EXTINGUISHER));
+    artifact.mutable_pose()->mutable_position()->set_x(-8.1);
+    artifact.mutable_pose()->mutable_position()->set_y(37);
+    artifact.mutable_pose()->mutable_position()->set_z(0.004);
+
+    std::string serializedData;
+    if (!artifact.SerializeToString(&serializedData))
+    {
+      ROS_ERROR("ReportArtifact(): Error serializing message [%s]",
+          artifact.DebugString().c_str());
+    }
+    else if (!this->client->SendTo(serializedData, subt::kBaseStationName))
+    {
+      ROS_ERROR("CommsClient failed to Send serialized data.");
+    }
   }
+  // Move towards entrance
   else
   {
-      this->current_height = height;
-      msg.linear.z = linVel_cur + this->linVel;
-      msg.linear.x = -0.0495;        	
+    // Yaw w.r.t. entrance
+    // Quaternion to yaw:
+    // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
+    auto q = pose.orientation;
+    double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
+    double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+    auto yaw = atan2(siny_cosp, cosy_cosp);
 
-      if (height < 5.0)
+    auto facingFront = abs(yaw) < 0.1;
+    auto facingEast = abs(yaw + M_PI * 0.5) < 0.1;
+    auto facingWest = abs(yaw - M_PI * 0.5) < 0.1;
+
+    auto onCenter = abs(pose.position.y) <= 1.0;
+    auto westOfCenter = pose.position.y > 1.0;
+    auto eastOfCenter = pose.position.y < -1.0;
+
+    double height = pose.position.z;
+    double thrust = 14.8965;
+    double linVel = 0.0;
+    double angVel = 1.5;
+
+    if (height <= 5.0)
+    {
+      msg.linear.z = thrust;
+    }
+    else
+    {
+      msg.linear.z = thrust - 0.0005;
+    }
+    msg.linear.x = -0.04975;
+
+    if (abs(height - 5.0) <= 0.5)
+    {
+      // Robot is facing entrance
+      if (facingFront && onCenter)
       {
-	if (this->linVel < 1.0)
-          this->linVel += 0.05;
+        msg.linear.x = 0.0;
+        msg.angular.z = angVel * -yaw;
+      }
+      // Turn to center line
+      else if (!facingEast && westOfCenter)
+      {
+        msg.angular.z = -angVel;
+      }
+      else if (!facingWest && eastOfCenter)
+      {
+        msg.angular.z = angVel;
+      }
+      // Go to center line
+      else if (facingEast && westOfCenter)
+      {
+        msg.linear.x = linVel;
+      }
+      else if (facingWest && eastOfCenter)
+      {
+        msg.linear.x = linVel;
+      }
+      // Center line, not facing entrance
+      else if (onCenter && !facingFront)
+      {
+        msg.angular.z = angVel * -yaw;
       }
       else
-        this->linVel -= 0.05;
+      {
+        ROS_ERROR("Unhandled case");
+      }
+    }
   }
+
   this->velPub.publish(msg);
 }
 
@@ -273,4 +350,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
