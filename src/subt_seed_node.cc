@@ -227,9 +227,9 @@ not available.");
     // Yaw w.r.t. entrance
     // Quaternion to yaw:
     // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
-    auto onCenter = abs(pose.position.y) <= 1.0;
-    auto westOfCenter = pose.position.y > 1.0;
-    auto eastOfCenter = pose.position.y < -1.0;
+    auto onCenter = abs(pose.position.y) <= 0.5;
+    auto westOfCenter = pose.position.y > 0.5;
+    auto eastOfCenter = pose.position.y < -0.5;
 
     double height = pose.position.z;
     double thrust = 14.9;
@@ -242,7 +242,7 @@ not available.");
     }
     else
     {
-      msg.linear.z = thrust - 0.05;
+      msg.linear.z = thrust - 0.01;
     }
     msg.linear.x = -0.04975;
 
@@ -251,15 +251,7 @@ not available.");
       // Robot is on entrance line
       if (onCenter)
       {
-        // Robot is on entrance line
-        if (abs(pose.position.y) <= 0.25)
-        {
-          msg.linear.x = linVel;
-        }
-        else
-        {
-          msg.linear.y = 0.05 * ((pose.position.y >= 0.0) ? 1 : -1);
-        }
+        msg.linear.x = linVel;
       }
       // Robot is west of entrance
       else if (westOfCenter)
