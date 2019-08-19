@@ -260,7 +260,7 @@ not available.");
       // Robot is facing entrance
       if (facingFront && onCenter)
       {
-        msg.linear.x = 0.0;
+        msg.linear.x = linVel;
         msg.angular.z = angVel * -yaw;
       }
       // Turn to center line
