@@ -227,25 +227,16 @@ not available.");
     // Yaw w.r.t. entrance
     // Quaternion to yaw:
     // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
-    auto q = pose.orientation;
-    double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
-    double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    auto yaw = atan2(siny_cosp, cosy_cosp);
-
-    auto facingFront = abs(yaw) < 0.1;
-    auto facingEast = abs(yaw + M_PI * 0.5) < 0.1;
-    auto facingWest = abs(yaw - M_PI * 0.5) < 0.1;
-
     auto onCenter = abs(pose.position.y) <= 1.0;
     auto westOfCenter = pose.position.y > 1.0;
     auto eastOfCenter = pose.position.y < -1.0;
 
     double height = pose.position.z;
     double thrust = 14.8965;
-    double linVel = 0.0;
+    double linVel = -0.03;
     double angVel = 1.5;
 
-    if (height <= 5.0)
+    if (height <= 2.5)
     {
       msg.linear.z = thrust;
     }
@@ -255,40 +246,21 @@ not available.");
     }
     msg.linear.x = -0.04975;
 
-    if (abs(height - 5.0) <= 0.5)
+    if (abs(height - 2.5) <= 0.5)
     {
-      // Robot is facing entrance
-      if (facingFront && onCenter)
-      {
-        msg.linear.x = linVel;
-        msg.angular.z = angVel * -yaw;
-      }
-      // Turn to center line
-      else if (!facingEast && westOfCenter)
-      {
-        msg.angular.z = -angVel;
-      }
-      else if (!facingWest && eastOfCenter)
-      {
-        msg.angular.z = angVel;
-      }
-      // Go to center line
-      else if (facingEast && westOfCenter)
+      // Robot is on entrance line
+      if (onCenter)
       {
         msg.linear.x = linVel;
       }
-      else if (facingWest && eastOfCenter)
+      // Robot is west of entrance
+      else if (westOfCenter)
       {
-        msg.linear.x = linVel;
+        msg.linear.y = 0.01;
       }
-      // Center line, not facing entrance
-      else if (onCenter && !facingFront)
+      else if (eastOfCenter)
       {
-        msg.angular.z = angVel * -yaw;
-      }
-      else
-      {
-        ROS_ERROR("Unhandled case");
+        msg.linear.y = -0.01;
       }
     }
   }
