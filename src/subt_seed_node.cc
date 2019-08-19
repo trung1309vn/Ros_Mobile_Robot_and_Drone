@@ -197,8 +197,14 @@ not available.");
   if (dist < 0.3 || pose.position.x >= -0.3)
   {
     msg.linear.x = 0;
-    msg.linear.z = 0;
-    msg.angular.z = 0;
+    if (pose.position.z > 0.0)
+    {
+      msg.linear.z = 14.85;
+    }
+    else
+    {
+      msg.linear.z = 0;
+    }
     this->arrived = true;
     ROS_INFO("Arrived at entrance!");
 
