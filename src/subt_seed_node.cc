@@ -196,7 +196,7 @@ not available.");
   // Arrived
   if (dist < 0.3 || pose.position.x >= -0.3)
   {
-    msg.linear.x = 0;
+    msg.linear.x = -0.04975;
     if (pose.position.z > 0.0)
     {
       msg.linear.z = 14.85;
