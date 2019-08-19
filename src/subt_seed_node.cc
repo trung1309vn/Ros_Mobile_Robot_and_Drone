@@ -256,11 +256,11 @@ not available.");
       // Robot is west of entrance
       else if (westOfCenter)
       {
-        msg.linear.y = -0.005;
+        msg.linear.y = -0.0075;
       }
       else if (eastOfCenter)
       {
-        msg.linear.y = 0.005;
+        msg.linear.y = 0.0075;
       }
     }
   }
