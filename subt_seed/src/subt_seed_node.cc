@@ -234,7 +234,7 @@ not available.");
     double height = pose.position.z;
     double thrust = 14.8965;
     double linVel = -0.03;
-    double angVel = 1.5;
+    //double angVel = 1.5;
 
     if (height <= 2.0)
     {
@@ -252,6 +252,7 @@ not available.");
       if (onCenter)
       {
         msg.linear.x = linVel;
+        msg.linear.y = 0.01 * pose.position.y;
       }
       // Robot is west of entrance
       else if (westOfCenter)
