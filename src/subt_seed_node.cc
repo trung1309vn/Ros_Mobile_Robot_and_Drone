@@ -232,7 +232,7 @@ not available.");
     auto eastOfCenter = pose.position.y < -1.0;
 
     double height = pose.position.z;
-    double thrust = 14.8965;
+    double thrust = 14.9;
     double linVel = -0.03;
     //double angVel = 1.5;
 
@@ -242,7 +242,7 @@ not available.");
     }
     else
     {
-      msg.linear.z = thrust - 0.0005;
+      msg.linear.z = thrust - 0.1;
     }
     msg.linear.x = -0.04975;
 
@@ -258,17 +258,17 @@ not available.");
         }
         else
         {
-          msg.linear.y = 0.01 * ((pose.position.y >= 0.0) ? 1 : -1);
+          msg.linear.y = 0.1 * ((pose.position.y >= 0.0) ? 1 : -1);
         }
       }
       // Robot is west of entrance
       else if (westOfCenter)
       {
-        msg.linear.y = -0.01;
+        msg.linear.y = -0.005;
       }
       else if (eastOfCenter)
       {
-        msg.linear.y = 0.01;
+        msg.linear.y = 0.005;
       }
     }
   }
