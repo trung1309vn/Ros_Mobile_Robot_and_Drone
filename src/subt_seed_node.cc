@@ -242,7 +242,7 @@ not available.");
     }
     else
     {
-      msg.linear.z = thrust - 0.1;
+      msg.linear.z = thrust - 0.05;
     }
     msg.linear.x = -0.04975;
 
@@ -258,7 +258,7 @@ not available.");
         }
         else
         {
-          msg.linear.y = 0.1 * ((pose.position.y >= 0.0) ? 1 : -1);
+          msg.linear.y = 0.05 * ((pose.position.y >= 0.0) ? 1 : -1);
         }
       }
       // Robot is west of entrance
