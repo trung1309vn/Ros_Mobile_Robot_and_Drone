@@ -251,8 +251,15 @@ not available.");
       // Robot is on entrance line
       if (onCenter)
       {
-        msg.linear.x = linVel;
-        msg.linear.y = 0.01 * pose.position.y;
+        // Robot is on entrance line
+        if (abs(pose.position.y) <= 0.25)
+        {
+          msg.linear.x = linVel;
+        }
+        else
+        {
+          msg.linear.y = 0.01 * ((pose.position.y >= 0.0) ? 1 : -1);
+        }
       }
       // Robot is west of entrance
       else if (westOfCenter)
