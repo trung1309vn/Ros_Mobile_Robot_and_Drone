@@ -236,7 +236,7 @@ not available.");
     double linVel = -0.03;
     double angVel = 1.5;
 
-    if (height <= 2.5)
+    if (height <= 2.0)
     {
       msg.linear.z = thrust;
     }
@@ -246,7 +246,7 @@ not available.");
     }
     msg.linear.x = -0.04975;
 
-    if (abs(height - 2.5) <= 0.5)
+    if (abs(height - 2.0) <= 0.5)
     {
       // Robot is on entrance line
       if (onCenter)
@@ -256,11 +256,11 @@ not available.");
       // Robot is west of entrance
       else if (westOfCenter)
       {
-        msg.linear.y = 0.01;
+        msg.linear.y = -0.01;
       }
       else if (eastOfCenter)
       {
-        msg.linear.y = -0.01;
+        msg.linear.y = 0.01;
       }
     }
   }
