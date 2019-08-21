@@ -154,14 +154,14 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    // Here, we are assuming that the robot names are "X1" and "X2".
-    if (this->name == "X1")
+    // Here, we are assuming that the robot names are "X1" and "X3".
+    if (this->name == "X3")
     {
-      this->client->SendTo("Hello from " + this->name, "X2");
+      this->client->SendTo("Hello from " + this->name, "X1");
     }
     else
     {
-      this->client->SendTo("Hello from " + this->name, "X1");
+      this->client->SendTo("Hello from " + this->name, "X3");
     }
     this->lastMsgSentTime = now;
   }
@@ -175,8 +175,8 @@ void Controller::Update()
   if (!call || !this->originSrv.response.success)
   {
     ROS_ERROR("Failed to call pose_from_artifact_origin service, \
-robot may not exist, be outside staging area, or the service is \
-not available.");
+    robot may not exist, be outside staging area, or the service is \
+    not available.");
 
     // Stop robot
     geometry_msgs::Twist msg;
@@ -186,25 +186,92 @@ not available.");
 
   auto pose = this->originSrv.response.pose.pose;
 
-  ROS_INFO("position: x = %f, y = %f, z = %f\n", pose.position.x, pose.position.y, pose.position.z);
-  auto q = pose.orientation;
-  // roll (x-axis rotation)
-  double sinr_cosp = +2.0 * (q.w * q.x + q.y * q.z);
-  double cosr_cosp = +1.0 - 2.0 * (q.x * q.x + q.y * q.y);
-  angles.roll = atan2(sinr_cosp, cosr_cosp);
+  // Simple example for robot to go to entrance
+  geometry_msgs::Twist msg;
 
-  // pitch (y-axis rotation)
-  double sinp = +2.0 * (q.w * q.y - q.z * q.x);
-  if (fabs(sinp) >= 1)
-      angles.pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+  // Distance to goal
+  double dist = pose.position.x * pose.position.x +
+    pose.position.y * pose.position.y;
+
+  // Arrived
+  if (dist < 0.3 || pose.position.x >= -0.3)
+  {
+    msg.linear.x = -0.04975;
+    if (pose.position.z > 0.25)
+    {
+      msg.linear.z = 14.85;
+    }
+    else
+    {
+      msg.linear.z = 0;
+    }
+    this->arrived = true;
+    ROS_INFO("Arrived at entrance!");
+
+    // Report an artifact
+    // Hardcoded to tunnel_circuit_practice_01's exginguisher_3
+    subt::msgs::Artifact artifact;
+    artifact.set_type(static_cast<uint32_t>(subt::ArtifactType::TYPE_EXTINGUISHER));
+    artifact.mutable_pose()->mutable_position()->set_x(-8.1);
+    artifact.mutable_pose()->mutable_position()->set_y(37);
+    artifact.mutable_pose()->mutable_position()->set_z(0.004);
+
+    std::string serializedData;
+    if (!artifact.SerializeToString(&serializedData))
+    {
+      ROS_ERROR("ReportArtifact(): Error serializing message [%s]",
+          artifact.DebugString().c_str());
+    }
+    else if (!this->client->SendTo(serializedData, subt::kBaseStationName))
+    {
+      ROS_ERROR("CommsClient failed to Send serialized data.");
+    }
+  }
+  // Move towards entrance
   else
-      angles.pitch = asin(sinp);
+  {
+    // Yaw w.r.t. entrance
+    // Quaternion to yaw:
+    // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
+    auto onCenter = abs(pose.position.y) <= 0.5;
+    auto westOfCenter = pose.position.y > 0.5;
+    auto eastOfCenter = pose.position.y < -0.5;
 
-  // yaw (z-axis rotation)
-  double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
-  double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);  
-  angles.yaw = atan2(siny_cosp, cosy_cosp);
-  ROS_INFO("angular : yaw = %f, pitch = %f, roll = %f", angles.yaw, angles.pitch, angles.roll);
+    double height = pose.position.z;
+    double thrust = 14.9;
+    double linVel = -0.03;
+    //double angVel = 1.5;
+
+    if (height <= 2.0)
+    {
+      msg.linear.z = thrust;
+    }
+    else
+    {
+      msg.linear.z = thrust - 0.015;
+    }
+    msg.linear.x = -0.04975;
+
+    if (abs(height - 2.0) <= 0.5)
+    {
+      // Robot is on entrance line
+      if (onCenter)
+      {
+        msg.linear.x = linVel;
+      }
+      // Robot is west of entrance
+      else if (westOfCenter)
+      {
+        msg.linear.y = -0.0075;
+      }
+      else if (eastOfCenter)
+      {
+        msg.linear.y = 0.0075;
+      }
+    }
+  }
+
+  this->velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
