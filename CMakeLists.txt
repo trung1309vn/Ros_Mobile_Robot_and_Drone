@@ -44,9 +44,21 @@ link_directories(
 )
 
 ## Declare a C++ executable
-add_executable(subt_seed_node src/subt_seed_node.cc)
-add_dependencies(subt_seed_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(subt_seed_node ${catkin_LIBRARIES})
+add_executable(robot_move_freely src/robot_move_freely.cc)
+add_dependencies(robot_move_freely ${catkin_EXPORTED_TARGETS})
+target_link_libraries(robot_move_freely ${catkin_LIBRARIES})
+
+add_executable(robot_move_entrance src/robot_move_entrance.cc)
+add_dependencies(robot_move_entrance ${catkin_EXPORTED_TARGETS})
+target_link_libraries(robot_move_entrance ${catkin_LIBRARIES})
+
+add_executable(drone_move_freely src/drone_move_freely.cc)
+add_dependencies(drone_move_freely ${catkin_EXPORTED_TARGETS})
+target_link_libraries(drone_move_freely ${catkin_LIBRARIES})
+
+add_executable(drone_move_entrance src/drone_move_entrance.cc)
+add_dependencies(drone_move_entrance ${catkin_EXPORTED_TARGETS})
+target_link_libraries(drone_move_entrance ${catkin_LIBRARIES})
 
 ###########
 ## Tests ##
