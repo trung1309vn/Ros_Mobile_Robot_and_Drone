@@ -31,10 +31,11 @@
 class Listener
 {
   public: 
-    sensor_msgs::LaserScan laser_scan;
+    sensor_msgs::LaserScan laser;
     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
     {
-      laser_scan = *msg;
+      ROS_INFO("I heard: [%f]", msg->ranges[0];
+      laser = *msg;
     }
 };
 
@@ -163,7 +164,7 @@ void Controller::Update()
   Listener listener;
   ros::Subscriber sub = this->n.subscribe(this->name + "/front_scan", 1000, &Listener::callback, &listener);
  
-  auto laser_scan = listener.laser_scan;
+  sensor_msgs::LaserScan laser_scan = listener.laser_scan;
   ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
