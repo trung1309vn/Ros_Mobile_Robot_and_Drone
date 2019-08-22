@@ -200,8 +200,6 @@ void Controller::Update()
     this->lastMsgSentTime = now;
   }
 
-  bool call = this->originClient.call(this->originSrv);
-
   // Check laser scan information
   auto laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, &this->Move);
 }
