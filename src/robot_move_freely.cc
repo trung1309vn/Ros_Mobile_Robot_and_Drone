@@ -168,7 +168,7 @@ void Controller::Update()
  
   auto laser_scan = listener.laser;
   //std::cout << typeid(laser_scan).name();
-  std::cout << typeid(laser_scan.ranges[0]).name() << "\n";
+  //std::cout << typeid(laser_scan.ranges[0]).name() << "\n";
   std::cout << laser_scan.ranges[0];
   return;
   /*
