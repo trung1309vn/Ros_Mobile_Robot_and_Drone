@@ -28,6 +28,16 @@
 #include <subt_communication_broker/subt_communication_client.h>
 #include <subt_ign/CommonTypes.hh>
 
+class Listener
+{
+  public: 
+    sensor_msgs::LaserScan laser_scan;
+    void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
+    {
+      laser_scan = *msg;
+    }
+}
+
 /// \brief. Example control class, running as a ROS node to control a robot.
 class Controller
 {
@@ -40,8 +50,6 @@ class Controller
   /// \brief A function that will be called every loop of the ros spin
   /// cycle.
   public: void Update();
-
-  public: void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan);
 
   /// \brief Callback function for message from other comm clients.
   /// \param[in] _srcAddress The address of the robot who sent the packet.
@@ -99,55 +107,6 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
       _dstAddress.c_str(), _dstPort);
 }
 
-void Controller::Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan)
-{
-  // Simple example for robot to go to entrance
-  geometry_msgs::Twist msg;
-  // Set direction for robot
-  double linVel = 3.0;
-  double angVel = 1.5;
-  int direction = 0; // 0: forward, -1: left, 1: right;
-  if (laser_scan->ranges[359] > laser_scan->ranges[119] && laser_scan->ranges[359] > laser_scan->ranges[599])
-  {
-    direction = 0;
-  }
-  else if (laser_scan->ranges[119] > laser_scan->ranges[359] && laser_scan->ranges[119] > laser_scan->ranges[599])
-  {
-    direction = 1;
-  }
-  else if (laser_scan->ranges[599] > laser_scan->ranges[359] && laser_scan->ranges[599] > laser_scan->ranges[119])
-  {
-    direction = -1;
-  }
-  else if (laser_scan->ranges[359] < laser_scan->ranges[119])
-  {
-    direction = (rand() > RAND_MAX/2) ? -1: 1;
-  }
-  else
-  {
-    direction = 0;
-  }
-
-  switch (direction)
-  {
-    case -1:
-    {
-      msg.angular.z = angVel;
-      msg.linear.x = linVel;
-    }
-    case 1:
-    {
-      msg.angular.z = -angVel;
-      msg.linear.x = linVel;
-    }
-    case 0:
-    {
-      msg.angular.x = linVel;
-    }
-  }
-  this->velPub.publish(msg);
-}
-
 /////////////////////////////////////////////////
 void Controller::Update()
 {
@@ -201,7 +160,55 @@ void Controller::Update()
   }
 
   // Check laser scan information
-  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, this->Move);
+  Listener listener;
+  ros::Subscriber sub = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, &Listener::callback, &listener);
+
+  auto laser_scan = listener.laser_scan;
+  // Simple example for robot to go to entrance
+  geometry_msgs::Twist msg;
+  // Set direction for robot
+  double linVel = 3.0;
+  double angVel = 1.5;
+  int direction = 0; // 0: forward, -1: left, 1: right;
+  if (laser_scan.ranges[359] > laser_scan.ranges[119] && laser_scan.ranges[359] > laser_scan.ranges[599])
+  {
+    direction = 0;
+  }
+  else if (laser_scan.ranges[119] > laser_scan.ranges[359] && laser_scan.ranges[119] > laser_scan.ranges[599])
+  {
+    direction = 1;
+  }
+  else if (laser_scan.ranges[599] > laser_scan.ranges[359] && laser_scan.ranges[599] > laser_scan.ranges[119])
+  {
+    direction = -1;
+  }
+  else if (laser_scan.ranges[359] < laser_scan.ranges[119])
+  {
+    direction = (rand() > RAND_MAX/2) ? -1: 1;
+  }
+  else
+  {
+    direction = 0;
+  }
+
+  switch (direction)
+  {
+    case -1:
+    {
+      msg.angular.z = angVel;
+      msg.linear.x = linVel;
+    }
+    case 1:
+    {
+      msg.angular.z = -angVel;
+      msg.linear.x = linVel;
+    }
+    case 0:
+    {
+      msg.angular.x = linVel;
+    }
+  }
+  this->velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
