@@ -76,13 +76,12 @@ class Controller
 /////////////////////////////////////////////////
 Controller::Controller(const std::string &_name)
 {
-  ROS_INFO("Waiting for /clock, /subt/start, and /subt/pose_from_artifact");
+  ROS_INFO("Waiting for /clock, /subt/start");
 
   ros::topic::waitForMessage<rosgraph_msgs::Clock>("/clock", this->n);
 
   // Wait for the start service to be ready.
   ros::service::waitForService("/subt/start", -1);
-  ros::service::waitForService("/subt/pose_from_artifact_origin", -1);
   this->name = _name;
   ROS_INFO("Using robot name[%s]\n", this->name.c_str());
 }
@@ -93,15 +92,9 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
                                     const uint32_t _dstPort,
                                     const std::string &_data)
 {
-  subt::msgs::ArtifactScore res;
-  if (!res.ParseFromString(_data))
-  {
-    ROS_INFO("Message Contents[%s]", _data.c_str());
-  }
-
   // Add code to handle communication callbacks.
-  ROS_INFO("Message from [%s] to [%s] on port [%u]:\n [%s]", _srcAddress.c_str(),
-      _dstAddress.c_str(), _dstPort, res.DebugString().c_str());
+  ROS_INFO("Message from [%s] to [%s] on port [%u]:\n", _srcAddress.c_str(),
+      _dstAddress.c_str(), _dstPort);
 }
 
 /////////////////////////////////////////////////
@@ -134,8 +127,6 @@ void Controller::Update()
           this->name + "/cmd_vel", 1);
 
       // Create a cmd_vel publisher to control a vehicle.
-      this->originClient = this->n.serviceClient<subt_msgs::PoseFromArtifact>(
-          "/subt/pose_from_artifact_origin");
       this->originSrv.request.robot_name.data = this->name;
     }
     else
@@ -162,19 +153,6 @@ void Controller::Update()
   }
 
   bool call = this->originClient.call(this->originSrv);
-  // Query current robot position w.r.t. entrance
-  if (!call || !this->originSrv.response.success)
-  {
-    ROS_ERROR("Failed to call pose_from_artifact_origin service, \
-robot may not exist, be outside staging area, or the service is \
-not available.");
-
-    // Stop robot
-    geometry_msgs::Twist msg;
-    this->velPub.publish(msg);
-    return;
-  }
-
   auto pose = this->originSrv.response.pose.pose;
 
   // Simple example for robot to go to entrance
