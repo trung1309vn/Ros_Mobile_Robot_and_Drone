@@ -164,7 +164,7 @@ void Controller::Update()
   ros::Subscriber sub = this->n.subscribe(this->name + "/front_scan", 1000, &Listener::callback, &listener);
  
   auto laser_scan = listener.laser_scan;
-  ROS_INFO("%f", laser_scan.ranges[0]);
+  ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
   // Set direction for robot
