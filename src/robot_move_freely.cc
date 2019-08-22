@@ -160,12 +160,13 @@ void Controller::Update()
   }
 
   // Check laser scan information
-  ROS_INFO("Debug_start");
   Listener listener;
   ros::Subscriber sub = this->n.subscribe(this->name + "/front_scan", 1000, &Listener::callback, &listener);
 
-  ROS_INFO("Done");
+  ROS_INFO("Debug_start");
+  
   auto laser_scan = listener.laser_scan;
+  ROS_INFO("Done");
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
   // Set direction for robot
