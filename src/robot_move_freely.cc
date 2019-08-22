@@ -34,7 +34,7 @@ class Listener
     sensor_msgs::LaserScan laser;
     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
     {
-      ROS_INFO("I heard: [%f]", msg->ranges[0];
+      ROS_INFO("I heard: [%f]", msg->ranges[0]);
       laser = *msg;
     }
 };
