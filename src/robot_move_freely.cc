@@ -34,7 +34,7 @@ class Listener
     sensor_msgs::LaserScan laser;
     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
     {
-      laser = *msg;
+      laser = msg;
       ROS_INFO("Heard");
       //ROS_INFO("I heard: [%f]", msg->ranges[0]);
     }
@@ -166,7 +166,7 @@ void Controller::Update()
   ros::Subscriber sub = this->n.subscribe("/" + this->name + "/front_scan", 1000, &Listener::callback, &listener);
  
   sensor_msgs::LaserScan laser_scan = listener.laser;
-  std::cout << laser_scan.ranges[0];
+  std::cout << laser_scan->ranges[0];
   /*
   ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
   // Simple example for robot to go to entrance
