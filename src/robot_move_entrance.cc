@@ -154,14 +154,14 @@ void Controller::Update()
 
   if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
   {
-    // Here, we are assuming that the robot names are "X1" and "X3".
-    if (this->name == "X3")
+    // Here, we are assuming that the robot names are "X1" and "X2".
+    if (this->name == "X1")
     {
-      this->client->SendTo("Hello from " + this->name, "X1");
+      this->client->SendTo("Hello from " + this->name, "X2");
     }
     else
     {
-      this->client->SendTo("Hello from " + this->name, "X3");
+      this->client->SendTo("Hello from " + this->name, "X1");
     }
     this->lastMsgSentTime = now;
   }
@@ -175,8 +175,8 @@ void Controller::Update()
   if (!call || !this->originSrv.response.success)
   {
     ROS_ERROR("Failed to call pose_from_artifact_origin service, \
-    robot may not exist, be outside staging area, or the service is \
-    not available.");
+robot may not exist, be outside staging area, or the service is \
+not available.");
 
     // Stop robot
     geometry_msgs::Twist msg;
@@ -196,15 +196,8 @@ void Controller::Update()
   // Arrived
   if (dist < 0.3 || pose.position.x >= -0.3)
   {
-    msg.linear.x = -0.04975;
-    if (pose.position.z > 0.25)
-    {
-      msg.linear.z = 14.85;
-    }
-    else
-    {
-      msg.linear.z = 0;
-    }
+    msg.linear.x = 0;
+    msg.angular.z = 0;
     this->arrived = true;
     ROS_INFO("Arrived at entrance!");
 
@@ -233,41 +226,54 @@ void Controller::Update()
     // Yaw w.r.t. entrance
     // Quaternion to yaw:
     // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
-    auto onCenter = abs(pose.position.y) <= 0.5;
-    auto westOfCenter = pose.position.y > 0.5;
-    auto eastOfCenter = pose.position.y < -0.5;
+    auto q = pose.orientation;
+    double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
+    double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+    auto yaw = atan2(siny_cosp, cosy_cosp);
 
-    double height = pose.position.z;
-    double thrust = 14.9;
-    double linVel = -0.03;
-    //double angVel = 1.5;
+    auto facingFront = abs(yaw) < 0.1;
+    auto facingEast = abs(yaw + M_PI * 0.5) < 0.1;
+    auto facingWest = abs(yaw - M_PI * 0.5) < 0.1;
 
-    if (height <= 2.0)
+    auto onCenter = abs(pose.position.y) <= 1.0;
+    auto westOfCenter = pose.position.y > 1.0;
+    auto eastOfCenter = pose.position.y < -1.0;
+
+    double linVel = 3.0;
+    double angVel = 1.5;
+
+    // Robot is facing entrance
+    if (facingFront && onCenter)
     {
-      msg.linear.z = thrust;
+      msg.linear.x = linVel;
+      msg.angular.z = angVel * -yaw;
+    }
+    // Turn to center line
+    else if (!facingEast && westOfCenter)
+    {
+      msg.angular.z = -angVel;
+    }
+    else if (!facingWest && eastOfCenter)
+    {
+      msg.angular.z = angVel;
+    }
+    // Go to center line
+    else if (facingEast && westOfCenter)
+    {
+      msg.linear.x = linVel;
+    }
+    else if (facingWest && eastOfCenter)
+    {
+      msg.linear.x = linVel;
+    }
+    // Center line, not facing entrance
+    else if (onCenter && !facingFront)
+    {
+      msg.angular.z = angVel * -yaw;
     }
     else
     {
-      msg.linear.z = thrust - 0.015;
-    }
-    msg.linear.x = -0.04975;
-
-    if (abs(height - 2.0) <= 0.5)
-    {
-      // Robot is on entrance line
-      if (onCenter)
-      {
-        msg.linear.x = linVel;
-      }
-      // Robot is west of entrance
-      else if (westOfCenter)
-      {
-        msg.linear.y = -0.0075;
-      }
-      else if (eastOfCenter)
-      {
-        msg.linear.y = 0.0075;
-      }
+      ROS_ERROR("Unhandled case");
     }
   }
 
