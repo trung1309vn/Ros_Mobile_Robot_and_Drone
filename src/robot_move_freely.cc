@@ -23,7 +23,7 @@
 #include <rosgraph_msgs/Clock.h>
 #include <sensor_msgs/LaserScan.h>
 #include <typeinfo>
-
+#include <iostream>
 #include <string>
 
 #include <subt_communication_broker/subt_communication_client.h>
