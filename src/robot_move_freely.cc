@@ -41,8 +41,6 @@ class Controller
   /// cycle.
   public: void Update();
 
-  public: void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan);
-
   /// \brief Callback function for message from other comm clients.
   /// \param[in] _srcAddress The address of the robot who sent the packet.
   /// \param[in] _dstAddress The address of the robot who received the packet.
