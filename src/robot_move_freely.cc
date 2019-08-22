@@ -168,7 +168,7 @@ void Controller::Update()
  
   auto laser_scan = listener.laser;
   std::cout << typeid(laser_scan).name();
-  //std::cout << laser_scan->ranges[0];
+  std::cout << typeid(laser_scan.ranges).name();
   /*
   ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
   // Simple example for robot to go to entrance
