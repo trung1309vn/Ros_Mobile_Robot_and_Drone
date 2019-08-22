@@ -161,7 +161,7 @@ void Controller::Update()
 
   // Check laser scan information
   Listener listener;
-  ros::Subscriber sub = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, &Listener::callback, &listener);
+  ros::Subscriber sub = this->n.subscribe(this->name + "/front_scan", 1000, &Listener::callback, &listener);
 
   auto laser_scan = listener.laser_scan;
   // Simple example for robot to go to entrance
