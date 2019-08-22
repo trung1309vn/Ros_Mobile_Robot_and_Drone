@@ -57,7 +57,7 @@ class Controller
   private: ros::NodeHandle n;
 
   /// \brief publisher to send cmd_vel
-  private: ros::Publisher velPub;
+  public: ros::Publisher velPub;
 
   /// \brief Communication client.
   private: std::unique_ptr<subt::CommsClient> client;
@@ -99,7 +99,7 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
       _dstAddress.c_str(), _dstPort);
 }
 
-void Controller::Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan)
+void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan, ros::Publisher velPub)
 {
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
@@ -145,7 +145,7 @@ void Controller::Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan)
       msg.angular.x = linVel;
     }
   }
-  this->velPub.publish(msg);
+  velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
@@ -201,7 +201,7 @@ void Controller::Update()
   }
 
   // Check laser scan information
-  auto laser_scan = this->n.subscribe(this->name + "/front_scan", 1000, this->Move, this);
+  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, this->Move, this);
 }
 
 /////////////////////////////////////////////////
