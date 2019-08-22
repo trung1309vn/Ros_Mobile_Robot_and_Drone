@@ -201,7 +201,7 @@ void Controller::Update()
   }
 
   // Check laser scan information
-  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, this->Move, this);
+  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, &Move, this);
 }
 
 /////////////////////////////////////////////////
