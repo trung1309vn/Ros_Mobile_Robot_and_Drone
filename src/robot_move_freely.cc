@@ -36,7 +36,7 @@ class Listener
     {
       laser_scan = *msg;
     }
-}
+};
 
 /// \brief. Example control class, running as a ROS node to control a robot.
 class Controller
