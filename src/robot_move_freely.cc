@@ -41,6 +41,8 @@ class Controller
   /// cycle.
   public: void Update();
 
+  public: void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan);
+
   /// \brief Callback function for message from other comm clients.
   /// \param[in] _srcAddress The address of the robot who sent the packet.
   /// \param[in] _dstAddress The address of the robot who received the packet.
@@ -97,7 +99,7 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
       _dstAddress.c_str(), _dstPort);
 }
 
-void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan, ros::Publisher velPub)
+void Controller::Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan)
 {
   // Simple example for robot to go to entrance
   geometry_msgs::Twist msg;
@@ -143,7 +145,7 @@ void Move(const sensor_msgs::LaserScan::ConstPtr& laser_scan, ros::Publisher vel
       msg.angular.x = linVel;
     }
   }
-  velPub.publish(msg);
+  this->velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
@@ -199,7 +201,7 @@ void Controller::Update()
   }
 
   // Check laser scan information
-  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, &Move, this);
+  ros::Subscriber laser_scan = this->n.subscribe<sensor_msgs::LaserScan>(this->name + "/front_scan", 1000, this->Move);
 }
 
 /////////////////////////////////////////////////
