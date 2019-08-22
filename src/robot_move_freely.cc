@@ -208,7 +208,7 @@ not available.");
     direction = 0;
   }
 
-  switch (direction):
+  switch (direction)
   {
     case -1:
     {
