@@ -167,7 +167,7 @@ void Controller::Update()
   ros::Subscriber sub = this->n.subscribe("/" + this->name + "/front_scan", 1000, &Listener::callback, &listener);
  
   auto laser_scan = listener.laser;
-  std::cout << typeid(laser_scan);
+  std::cout << typeid(laser_scan).name() << endl;
   //std::cout << laser_scan->ranges[0];
   /*
   ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
