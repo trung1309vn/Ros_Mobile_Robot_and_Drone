@@ -35,7 +35,7 @@ class Listener
     sensor_msgs::LaserScan laser;
     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
     {
-      ROS_INFO("I heard: [%f]", msg->ranges[0]);
+      laser = *msg;
     }
 };
 
@@ -68,6 +68,12 @@ class Controller
   /// \brief publisher to send cmd_vel
   public: ros::Publisher velPub;
 
+  /// \brief subscriber to get laser_scan
+  public: ros::Subscriber laserSub;
+
+  /// \brief listener to get laser_scan
+  public: Listener listener;
+  
   /// \brief Communication client.
   private: std::unique_ptr<subt::CommsClient> client;
 
@@ -111,6 +117,7 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
 /////////////////////////////////////////////////
 void Controller::Update()
 {
+  ROS->INFO("THIS");
   if (!this->started)
   {
     // Send start signal
@@ -136,6 +143,9 @@ void Controller::Update()
       // Create a cmd_vel publisher to control a vehicle.
       this->velPub = this->n.advertise<geometry_msgs::Twist>(
           this->name + "/cmd_vel", 1);
+      // Create a laser_scan subscriber.
+      this->laserSub = this->n.subscribe<sensor_msgs::LaserScan>(
+          this->name + "/front_scan", 1000, &Listener::callback, &this->listener);    
     }
     else
       return;
@@ -160,63 +170,63 @@ void Controller::Update()
     this->lastMsgSentTime = now;
   }
 
-  // Check laser scan information
-  Listener listener;
-  ros::Subscriber sub = this->n.subscribe("/" + this->name + "/front_scan", 1000, &Listener::callback, &listener);
- 
-  //auto laser_scan = listener.laser;
-  //std::cout << typeid(laser_scan).name();
-  //std::cout << typeid(laser_scan.ranges[0]).name() << "\n";
-  //std::cout << laser_scan.ranges[0];
+  sensor_msgs::LaserScan laser_scan = this->listener.laser;
+  if (!laser_scan.ranges.empty())
+  {
+    // Simple example for robot to go to entrance
+    geometry_msgs::Twist msg;
+    // Set direction for robot
+    double linVel = 1.0;
+    double angVel = 3.14159265 / 4;
+    int direction = 0; // 0: forward, -1: left, 1: right;
+    if (laser_scan.ranges[359] > laser_scan.ranges[119] && laser_scan.ranges[359] > laser_scan.ranges[599])
+    {
+      direction = 0;
+      ROS_INFO("Distance [%f], Direction [%d]", laser_scan.ranges[359], direction);
+    }
+    else if (laser_scan.ranges[119] > laser_scan.ranges[359] && laser_scan.ranges[119] > laser_scan.ranges[599])
+    {
+      direction = 1;
+      ROS_INFO("Distance [%f], Direction [%d]", laser_scan.ranges[119], direction);
+    }
+    else if (laser_scan.ranges[599] > laser_scan.ranges[359] && laser_scan.ranges[599] > laser_scan.ranges[119])
+    {
+      direction = -1;
+      ROS_INFO("Distance [%f], Direction [%d]", laser_scan.ranges[599], direction);
+    }
+    else if (laser_scan.ranges[359] < laser_scan.ranges[119])
+    {
+      direction = (rand() > RAND_MAX/2) ? -1: 1;
+      ROS_INFO("Distance [%f], Direction [%d]", laser_scan.ranges[119], direction);
+    }
+    else
+    {
+      direction = 0;
+      ROS_INFO("Distance [%f], Direction [%d]", laser_scan.ranges[359], direction);
+    }
 
-  /*
-  ROS_INFO("Here is the ranges %f", laser_scan.ranges[0]);
-  // Simple example for robot to go to entrance
-  geometry_msgs::Twist msg;
-  // Set direction for robot
-  double linVel = 3.0;
-  double angVel = 1.5;
-  int direction = 0; // 0: forward, -1: left, 1: right;
-  if (laser_scan.ranges[359] > laser_scan.ranges[119] && laser_scan.ranges[359] > laser_scan.ranges[599])
-  {
-    direction = 0;
-  }
-  else if (laser_scan.ranges[119] > laser_scan.ranges[359] && laser_scan.ranges[119] > laser_scan.ranges[599])
-  {
-    direction = 1;
-  }
-  else if (laser_scan.ranges[599] > laser_scan.ranges[359] && laser_scan.ranges[599] > laser_scan.ranges[119])
-  {
-    direction = -1;
-  }
-  else if (laser_scan.ranges[359] < laser_scan.ranges[119])
-  {
-    direction = (rand() > RAND_MAX/2) ? -1: 1;
-  }
-  else
-  {
-    direction = 0;
-  }
-
-  switch (direction)
-  {
-    case -1:
+    switch (direction)
     {
-      msg.angular.z = angVel;
-      msg.linear.x = linVel;
+      case -1:
+      {
+        msg.angular.z = angVel;
+        msg.linear.x = 0;
+        break;
+      }
+      case 1:
+      {
+        msg.angular.z = -angVel;
+        msg.linear.x = 0;
+        break;
+      }
+      case 0:
+      {
+        msg.linear.x = linVel;
+      }
     }
-    case 1:
-    {
-      msg.angular.z = -angVel;
-      msg.linear.x = linVel;
-    }
-    case 0:
-    {
-      msg.angular.x = linVel;
-    }
+    ROS_INFO("Rotation: %f, Linear: %f", msg.angular.z, msg.linear.x);
+    this->velPub.publish(msg);
   }
-  this->velPub.publish(msg);
-  */
 }
 
 /////////////////////////////////////////////////
