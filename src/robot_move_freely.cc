@@ -117,7 +117,6 @@ void Controller::CommClientCallback(const std::string &_srcAddress,
 /////////////////////////////////////////////////
 void Controller::Update()
 {
-  ROS->INFO("THIS");
   if (!this->started)
   {
     // Send start signal
