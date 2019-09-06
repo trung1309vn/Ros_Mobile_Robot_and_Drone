@@ -279,7 +279,7 @@ void Controller::Update()
       // Action state
       if (onCenter)
       {
-        msg.linear.x = linVel;
+        pitch += 0.05;
         thrust -= 0.01;
         if (this->isBrake)
         {
