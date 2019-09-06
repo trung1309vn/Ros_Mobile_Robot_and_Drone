@@ -76,6 +76,11 @@ class Controller
 
   /// \brief Name of this robot.
   private: std::string name;
+
+  /// \ brief Last height
+  private: double lastHeight{0.0};
+
+  private: bool isBrake{false};
 };
 
 /////////////////////////////////////////////////
@@ -233,44 +238,76 @@ void Controller::Update()
     // Yaw w.r.t. entrance
     // Quaternion to yaw:
     // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Source_Code_2
-    auto onCenter = abs(pose.position.y) <= 0.5;
-    auto westOfCenter = pose.position.y > 0.5;
-    auto eastOfCenter = pose.position.y < -0.5;
+    auto onCenter = abs(pose.position.y) <= 0.1;
+    auto westOfCenter = pose.position.y > 0.1;
+    auto eastOfCenter = pose.position.y < -0.1;
 
-    double height = pose.position.z;
-    double thrust = 14.9;
-    double linVel = -0.03;
-    //double angVel = 1.5;
+    double gravity = 9.79967;
+    double mass = 1.52;
 
-    if (height <= 2.0)
-    {
-      msg.linear.z = thrust;
-    }
+    // PID gain
+    double weight = gravity * mass;
+    double offset = 0.1; // Adding variable to thrust
+    // Error
+    double error = dest - height;
+    double thrust;
+    double pitch = -0.04975;
+    double yaw = 0.0;
+    double roll = 0.0;
+
+  // Take off phase 
+  if (error >= 0.05)
+  {
+    double Pout = offset * error / (dest - 0.05);
+    thrust = weight + Pout; 
+  }
+  // Brake phase
+  else
+  {
+    // Braking state 
+    // Note: Adjust the threshold to make the brake more sensitive
+    if (abs(height - this->lastHeight) > 0.004)
+      thrust = weight + 0.05 - 0.5 * dest;
+    // Stabilizing state - making drone hover
     else
     {
-      msg.linear.z = thrust - 0.015;
-    }
-    msg.linear.x = -0.04975;
+      thrust = weight;
+      if (error <= -0.05)
+        thrust = weight - 0.025;
 
-    if (abs(height - 2.0) <= 0.5)
-    {
-      // Robot is on entrance line
+      // Action state
       if (onCenter)
       {
         msg.linear.x = linVel;
+        thrust -= 0.01;
+        if (this->isBrake)
+        {
+          if (pose.position.y > 0)
+            roll = 0.2;
+          else
+            roll = -0.2;
+
+          this->isBrake = false;
+        }
       }
       // Robot is west of entrance
       else if (westOfCenter)
       {
-        msg.linear.y = -0.0075;
+        roll = -0.05;
+        this->isBrake = true;
       }
       else if (eastOfCenter)
       {
-        msg.linear.y = 0.0075;
+        roll = 0.05;
+        this->isBrake = true;
       }
     }
   }
 
+  msg.linear.z = thrust;
+  msg.linear.x = pitch;
+  msg.linear.y = roll;
+  msg.angular.z = yaw;
   this->velPub.publish(msg);
 }
 
@@ -318,7 +355,7 @@ int main(int argc, char** argv)
   // This sample code iteratively calls Controller::Update. This is just an
   // example. You can write your controller using alternative methods.
   // To get started with ROS visit: http://wiki.ros.org/ROS/Tutorials
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(20);
   while (ros::ok())
   {
     controller.Update();

@@ -25,9 +25,8 @@
 #include <typeinfo>
 #include <iostream>
 #include <string>
-
-#include <subt_communication_broker/subt_communication_client.h>
-#include <subt_ign/CommonTypes.hh>
+#include <typeinfo>
+#include <vector>
 
 class Listener
 {
@@ -46,21 +45,11 @@ class Controller
   /// The controller uses the given name as a prefix of its topics, e.g.,
   /// "/x1/cmd_vel" if _name is specified as "x1".
   /// \param[in] _name Name of the robot.
-  public: Controller(const std::string &_name);
+  public: Controller();
 
   /// \brief A function that will be called every loop of the ros spin
   /// cycle.
   public: void Update();
-
-  /// \brief Callback function for message from other comm clients.
-  /// \param[in] _srcAddress The address of the robot who sent the packet.
-  /// \param[in] _dstAddress The address of the robot who received the packet.
-  /// \param[in] _dstPort The destination port.
-  /// \param[in] _data The contents the packet holds.
-  private: void CommClientCallback(const std::string &_srcAddress,
-                                   const std::string &_dstAddress,
-                                   const uint32_t _dstPort,
-                                   const std::string &_data);
 
   /// \brief ROS node handler.
   private: ros::NodeHandle n;
@@ -73,9 +62,6 @@ class Controller
 
   /// \brief listener to get laser_scan
   public: Listener listener;
-  
-  /// \brief Communication client.
-  private: std::unique_ptr<subt::CommsClient> client;
 
   /// \brief Client to request pose from origin.
   private: ros::ServiceClient originClient;
@@ -91,7 +77,7 @@ class Controller
 };
 
 /////////////////////////////////////////////////
-Controller::Controller(const std::string &_name)
+Controller::Controller()
 {
   ROS_INFO("Waiting for /clock, /subt/start");
 
@@ -99,19 +85,11 @@ Controller::Controller(const std::string &_name)
 
   // Wait for the start service to be ready.
   ros::service::waitForService("/subt/start", -1);
+
+  // Get Param
+  std::string _name = "X1";
   this->name = _name;
   ROS_INFO("Using robot name[%s]\n", this->name.c_str());
-}
-
-/////////////////////////////////////////////////
-void Controller::CommClientCallback(const std::string &_srcAddress,
-                                    const std::string &_dstAddress,
-                                    const uint32_t _dstPort,
-                                    const std::string &_data)
-{
-  // Add code to handle communication callbacks.
-  ROS_INFO("Message from [%s] to [%s] on port [%u]:\n", _srcAddress.c_str(),
-      _dstAddress.c_str(), _dstPort);
 }
 
 /////////////////////////////////////////////////
@@ -135,16 +113,13 @@ void Controller::Update()
 
     if (this->started)
     {
-      // Create subt communication client
-      this->client.reset(new subt::CommsClient(this->name));
-      this->client->Bind(&Controller::CommClientCallback, this);
-
       // Create a cmd_vel publisher to control a vehicle.
       this->velPub = this->n.advertise<geometry_msgs::Twist>(
           this->name + "/cmd_vel", 1);
+
       // Create a laser_scan subscriber.
       this->laserSub = this->n.subscribe<sensor_msgs::LaserScan>(
-          this->name + "/front_scan", 1000, &Listener::callback, &this->listener);    
+          this->name + "/front_scan", 1000, &Listener::callback, &this->listener);
     }
     else
       return;
@@ -154,21 +129,6 @@ void Controller::Update()
 
   std::chrono::time_point<std::chrono::system_clock> now =
     std::chrono::system_clock::now();
-
-  if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
-  {
-    // Here, we are assuming that the robot names are "X1" and "X2".
-    if (this->name == "X1")
-    {
-      this->client->SendTo("Hello from " + this->name, "X2");
-    }
-    else
-    {
-      this->client->SendTo("Hello from " + this->name, "X1");
-    }
-    this->lastMsgSentTime = now;
-  }
-
   sensor_msgs::LaserScan laser_scan = this->listener.laser;
   if (!laser_scan.ranges.empty())
   {
@@ -232,47 +192,17 @@ void Controller::Update()
 int main(int argc, char** argv)
 {
   // Initialize ros
-  ros::init(argc, argv, argv[1]);
+  ros::init(argc, argv, "robot_free");
 
   ROS_INFO("Starting seed competitor\n");
-  std::string name;
-
-  // Get the name of the robot based on the name of the "cmd_vel" topic if
-  // the name was not passed in as an argument.
-  if (argc < 2 || std::strlen(argv[1]) == 0)
-  {
-    ros::master::V_TopicInfo masterTopics;
-    ros::master::getTopics(masterTopics);
-
-    while (name.empty())
-    {
-      for (ros::master::V_TopicInfo::iterator it = masterTopics.begin();
-          it != masterTopics.end(); ++it)
-      {
-        const ros::master::TopicInfo &info = *it;
-        if (info.name.find("cmd_vel") != std::string::npos)
-        {
-          int rpos = info.name.rfind("/");
-          name = info.name.substr(1, rpos - 1);
-        }
-      }
-      if (name.empty())
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-  }
-  // Otherwise use the name provided as an argument.
-  else
-  {
-    name = argv[1];
-  }
 
   // Create the controller
-  Controller controller(name);
+  Controller controller;
 
   // This sample code iteratively calls Controller::Update. This is just an
   // example. You can write your controller using alternative methods.
   // To get started with ROS visit: http://wiki.ros.org/ROS/Tutorials
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(1);
   while (ros::ok())
   {
     controller.Update();

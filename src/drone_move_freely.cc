@@ -15,17 +15,40 @@
  *
 */
 #include <chrono>
+#include <stdlib.h>
+#include <unistd.h>
 #include <geometry_msgs/Twist.h>
-#include <subt_msgs/PoseFromArtifact.h>
 #include <ros/ros.h>
 #include <std_srvs/SetBool.h>
 #include <rosgraph_msgs/Clock.h>
-
+#include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/FluidPressure.h>
+#include <typeinfo>
+#include <iostream>
 #include <string>
+#include <vector>
 
-#include <subt_communication_broker/subt_communication_client.h>
-#include <subt_ign/CommonTypes.hh>
-#include <subt_ign/protobuf/artifact.pb.h>
+/// \brief. Class for getting information from subscriber
+// class Listener
+// {
+//   public: 
+//     sensor_msgs::LaserScan laser;
+//     void callback(const sensor_msgs::LaserScan::ConstPtr& msg)
+//     {
+//       laser = *msg;
+//     }
+// };
+
+/// \brief. Class for getting information from subscriber
+class Listener_Pressure
+{
+  public: 
+    sensor_msgs::FluidPressure air;
+    void callback(const sensor_msgs::FluidPressure::ConstPtr& msg)
+    {
+      air = *msg;
+    }
+};
 
 /// \brief. Example control class, running as a ROS node to control a robot.
 class Controller
@@ -34,39 +57,47 @@ class Controller
   /// The controller uses the given name as a prefix of its topics, e.g.,
   /// "/x1/cmd_vel" if _name is specified as "x1".
   /// \param[in] _name Name of the robot.
-  public: Controller(const std::string &_name);
+  public: Controller();
 
   /// \brief A function that will be called every loop of the ros spin
   /// cycle.
   public: void Update();
 
-  /// \brief Callback function for message from other comm clients.
-  /// \param[in] _srcAddress The address of the robot who sent the packet.
-  /// \param[in] _dstAddress The address of the robot who received the packet.
-  /// \param[in] _dstPort The destination port.
-  /// \param[in] _data The contents the packet holds.
-  private: void CommClientCallback(const std::string &_srcAddress,
-                                   const std::string &_dstAddress,
-                                   const uint32_t _dstPort,
-                                   const std::string &_data);
-
   /// \brief ROS node handler.
   private: ros::NodeHandle n;
 
   /// \brief publisher to send cmd_vel
-  private: ros::Publisher velPub;
+  public: ros::Publisher velPub;
 
-  /// \brief Communication client.
-  private: std::unique_ptr<subt::CommsClient> client;
+  /// \brief subscriber to get laser_scan
+  public: ros::Subscriber airSub;
 
+  /// \brief listener to get laser_scan
+  public: Listener_Pressure listener;
+
+  /// \brief Get drone height using fluid pressure sensor
+  public: float getHeight();
+
+  /// \brief Take off function
+  public: void takeOff();
+
+  /// \brief Landing function
+  public: void landing();
+
+  /// \brief Move up and down function
+  public: void thrustMove(float dest);
+
+  /// \brief Move forward and backward
+  public: float pitchMove(bool isForward, bool isBrake, float mass);
+
+  /// \brief Move to the left and right
+  public: float rollMove(bool isLeft, bool isBrake, float mass);
+
+  /// \brief Drone yaw
+  public: float yawMove(bool isClockWise, bool isBrake, float mass);
+  
   /// \brief Client to request pose from origin.
   private: ros::ServiceClient originClient;
-
-  /// \brief Service to request pose from origin.
-  private: subt_msgs::PoseFromArtifact originSrv;
-
-  /// \brief True if robot has arrived at destination.
-  private: bool arrived{false};
 
   /// \brief True if started.
   private: bool started{false};
@@ -76,37 +107,208 @@ class Controller
 
   /// \brief Name of this robot.
   private: std::string name;
+
+  /// \brief Tick variable for calculating time
+  private: int tick{0};
+
+  /// \brief Last Height
+  private: float lastHeight{0.0};
+
+  /// \brief Flight path
+  private: std::vector<std::string> path;
+
+  /// \brief Current action
+  private: int currentAction{0};
 };
 
 /////////////////////////////////////////////////
-Controller::Controller(const std::string &_name)
+Controller::Controller()
 {
-  ROS_INFO("Waiting for /clock, /subt/start, and /subt/pose_from_artifact");
+  ROS_INFO("Waiting for /clock, /subt/start");
 
   ros::topic::waitForMessage<rosgraph_msgs::Clock>("/clock", this->n);
 
   // Wait for the start service to be ready.
   ros::service::waitForService("/subt/start", -1);
-  ros::service::waitForService("/subt/pose_from_artifact_origin", -1);
+
+  // Get Param
+  std::string _name = "X3";
   this->name = _name;
   ROS_INFO("Using robot name[%s]\n", this->name.c_str());
+
+  // Init path (Demo path: square shape route)
+  this->path.push_back("Move_Forward");
+  this->path.push_back("Turn_Right");
+  this->path.push_back("Move_Forward");
+  this->path.push_back("Turn_Right");
+  this->path.push_back("Move_Forward");
+  this->path.push_back("Turn_Right");
+  this->path.push_back("Move_Forward");
+  this->path.push_back("Turn_Right");
 }
 
 /////////////////////////////////////////////////
-void Controller::CommClientCallback(const std::string &_srcAddress,
-                                    const std::string &_dstAddress,
-                                    const uint32_t _dstPort,
-                                    const std::string &_data)
+float Controller::getHeight()
 {
-  subt::msgs::ArtifactScore res;
-  if (!res.ParseFromString(_data))
+  // Standard air pressure = 101325 Pascal
+  // Standard density of air = 1.225 kg / m3
+  // Standard gravitational acceleration = 9.8  m / s2
+  return abs(this->listener.air.fluid_pressure - 101325) / (1.225 * 9.8);
+}
+
+/////////////////////////////////////////////////
+float Controller::pitchMove(bool isForward, bool isBrake, float mass)
+{
+  if (isForward)
   {
-    ROS_INFO("Message Contents[%s]", _data.c_str());
+    if (isBrake)
+      return -0.1;
+    else
+      return 0.05;
+  }
+  else
+  {
+    if (isBrake)
+      return 0.1;
+    else
+      return -0.05;
+  }
+}
+
+/////////////////////////////////////////////////
+float Controller::rollMove(bool isLeft, bool isBrake, float mass)
+{
+  if (isLeft)
+  {
+    if (isBrake)
+      return -0.1;
+    else
+      return 0.05;
+  }
+  else
+  {
+    if (isBrake)
+      return 0.1;
+    else
+      return -0.05;
+  }
+}
+
+/////////////////////////////////////////////////
+float Controller::yawMove(bool isClockWise, bool isBrake, float mass)
+{
+  float Pi = 3.14159265;
+  if (isClockWise)
+  {
+    if (isBrake)
+      return Pi / 2;
+    else
+      return -Pi / 2;
+  }
+  else
+  {
+    if (isBrake)
+      return -Pi / 2;
+    else
+      return Pi / 2;
+  }  
+}
+
+/////////////////////////////////////////////////
+void Controller::takeOff()
+{
+  float height = this->getHeight();
+  if (height > 100.0)
+    return;
+  height -= 0.053036;
+  float dest = 1.0;
+
+  float gravity = 9.79967;
+  float mass = 1.52;
+
+  // PID gain
+  float weight = gravity * mass;
+  float offset = 0.1; // Adding variable to thrust
+  // Error
+  float error = dest - height;
+  float thrust;
+  float pitch = -0.04975;
+  float yaw = 0.0;
+  float roll = 0.0;
+  float Pout = 0;
+  geometry_msgs::Twist msg;
+ 
+  // Take off phase 
+  if (error >= 0.05)
+  {
+    Pout = offset * error / (dest - 0.05);
+    thrust = weight + Pout; 
+  }
+  // Brake phase
+  else
+  {
+    // Braking state 
+    // Note: Adjust the threshold to make the brake more sensitive
+    if (abs(height - this->lastHeight) > 0.004)
+      thrust = weight + 0.05 - 0.5 * dest;
+    // Stabilizing state - making drone hover
+    else
+    {
+      thrust = weight;
+      if (error <= -0.05)
+        thrust = weight - 0.025;
+      
+      // Action state
+      if (this->tick < 40)
+      {
+        pitch += this->path[this->currentAction] == "Move_Forward" ? this->pitchMove(true, false, mass) : 0.0;
+        yaw += this->path[this->currentAction] == "Turn_Right" ? this->yawMove(true, false, mass) : 0.0;
+        //roll += this->path[this->currentAction] == "Roll" ? this->rollMove(isForward, false, mass) : 0.0;
+        thrust -= 0.01;
+      }
+      // Breaking action state
+      else if (this->tick <= 50)
+      {
+        pitch += this->path[this->currentAction] == "Move_Forward" ? this->pitchMove(true, true, mass) : 0.0;
+        yaw += this->path[this->currentAction] == "Turn_Right" ? this->yawMove(true, true, mass) : 0.0;
+        //roll += this->rollMove(isForward, true, mass) : 0.0;
+        thrust -= 0.01;
+      }
+      // Stabilizing state
+      else if (this->tick <= 60)
+      {
+        if (this->path[this->currentAction] == "Turn_Right")
+          pitch += 0.05;
+        thrust -= 0.01;
+      }
+      // Change action state
+      else if (this->tick == 80)
+      {
+        this->tick = 0;
+        this->currentAction += 1;
+        if (this->currentAction > 7)
+          this->currentAction = 0;
+      }
+      this->tick += 1;
+    } 
   }
 
-  // Add code to handle communication callbacks.
-  ROS_INFO("Message from [%s] to [%s] on port [%u]:\n [%s]", _srcAddress.c_str(),
-      _dstAddress.c_str(), _dstPort, res.DebugString().c_str());
+  ROS_INFO("Delta height: %f", abs(height - this->lastHeight));
+  ROS_INFO("Tick: %d", this->tick);
+  this->lastHeight = height;
+  
+  ROS_INFO("Drone's height: %f", height);
+  ROS_INFO("Thrust: %f", thrust);
+  ROS_INFO("Current action: %d", this->currentAction);
+  //ROS_INFO("Pitch: %f\n", pitch);
+  //ROS_INFO("Yaw: %f\n", yaw);
+  ROS_INFO("Roll: %f\n", roll);
+
+  msg.linear.z = thrust;
+  msg.linear.x = pitch;
+  msg.linear.y = roll;
+  msg.angular.z = yaw;
+  this->velPub.publish(msg);
 }
 
 /////////////////////////////////////////////////
@@ -130,18 +332,12 @@ void Controller::Update()
 
     if (this->started)
     {
-      // Create subt communication client
-      this->client.reset(new subt::CommsClient(this->name));
-      this->client->Bind(&Controller::CommClientCallback, this);
-
       // Create a cmd_vel publisher to control a vehicle.
       this->velPub = this->n.advertise<geometry_msgs::Twist>(
           this->name + "/cmd_vel", 1);
-
-      // Create a cmd_vel publisher to control a vehicle.
-      this->originClient = this->n.serviceClient<subt_msgs::PoseFromArtifact>(
-          "/subt/pose_from_artifact_origin");
-      this->originSrv.request.robot_name.data = this->name;
+      // Create a laser_scan subscriber.
+      this->airSub = this->n.subscribe<sensor_msgs::FluidPressure>(
+          this->name + "/air_pressure", 1000, &Listener_Pressure::callback, &this->listener);    
     }
     else
       return;
@@ -151,108 +347,27 @@ void Controller::Update()
 
   std::chrono::time_point<std::chrono::system_clock> now =
     std::chrono::system_clock::now();
+  
 
-  if (std::chrono::duration<double>(now - this->lastMsgSentTime).count() > 5.0)
-  {
-    // Here, we are assuming that the robot names are "X1" and "X2".
-    if (this->name == "X1")
-    {
-      this->client->SendTo("Hello from " + this->name, "X2");
-    }
-    else
-    {
-      this->client->SendTo("Hello from " + this->name, "X1");
-    }
-    this->lastMsgSentTime = now;
-  }
-
-
-  if (this->arrived)
-    return;
-
-  bool call = this->originClient.call(this->originSrv);
-  // Query current robot position w.r.t. entrance
-  if (!call || !this->originSrv.response.success)
-  {
-    ROS_ERROR("Failed to call pose_from_artifact_origin service, \
-robot may not exist, be outside staging area, or the service is \
-not available.");
-
-    // Stop robot
-    geometry_msgs::Twist msg;
-    this->velPub.publish(msg);
-    return;
-  }
-
-  auto pose = this->originSrv.response.pose.pose;
-
-  ROS_INFO("position: x = %f, y = %f, z = %f\n", pose.position.x, pose.position.y, pose.position.z);
-  auto q = pose.orientation;
-  // roll (x-axis rotation)
-  double sinr_cosp = +2.0 * (q.w * q.x + q.y * q.z);
-  double cosr_cosp = +1.0 - 2.0 * (q.x * q.x + q.y * q.y);
-  auto roll = atan2(sinr_cosp, cosr_cosp);
-
-  // pitch (y-axis rotation)
-  double sinp = +2.0 * (q.w * q.y - q.z * q.x);
-  auto pitch = 0.0;
-  if (fabs(sinp) >= 1)
-      pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-  else
-      pitch = asin(sinp);
-
-  // yaw (z-axis rotation)
-  double siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
-  double cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);  
-  auto yaw = atan2(siny_cosp, cosy_cosp);
-  ROS_INFO("angular : yaw = %f, pitch = %f, roll = %f", yaw, pitch, roll);
+  this->takeOff();
 }
 
 /////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
   // Initialize ros
-  ros::init(argc, argv, argv[1]);
+  ros::init(argc, argv, "drone_free");
 
   ROS_INFO("Starting seed competitor\n");
   std::string name;
 
-  // Get the name of the robot based on the name of the "cmd_vel" topic if
-  // the name was not passed in as an argument.
-  if (argc < 2 || std::strlen(argv[1]) == 0)
-  {
-    ros::master::V_TopicInfo masterTopics;
-    ros::master::getTopics(masterTopics);
-
-    while (name.empty())
-    {
-      for (ros::master::V_TopicInfo::iterator it = masterTopics.begin();
-          it != masterTopics.end(); ++it)
-      {
-        const ros::master::TopicInfo &info = *it;
-        if (info.name.find("cmd_vel") != std::string::npos)
-        {
-          int rpos = info.name.rfind("/");
-          name = info.name.substr(1, rpos - 1);
-        }
-      }
-      if (name.empty())
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-  }
-  // Otherwise use the name provided as an argument.
-  else
-  {
-    name = argv[1];
-  }
-
   // Create the controller
-  Controller controller(name);
+  Controller controller;
 
   // This sample code iteratively calls Controller::Update. This is just an
   // example. You can write your controller using alternative methods.
   // To get started with ROS visit: http://wiki.ros.org/ROS/Tutorials
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(20);
   while (ros::ok())
   {
     controller.Update();
