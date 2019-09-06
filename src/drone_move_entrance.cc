@@ -248,6 +248,7 @@ void Controller::Update()
     // PID gain
     double weight = gravity * mass;
     double offset = 0.1; // Adding variable to thrust
+    double dest = 1.0;
     // Error
     double error = dest - height;
     double thrust;
