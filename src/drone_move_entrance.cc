@@ -257,60 +257,61 @@ void Controller::Update()
     double yaw = 0.0;
     double roll = 0.0;
 
-  // Take off phase 
-  if (error >= 0.05)
-  {
-    double Pout = offset * error / (dest - 0.05);
-    thrust = weight + Pout; 
-  }
-  // Brake phase
-  else
-  {
-    // Braking state 
-    // Note: Adjust the threshold to make the brake more sensitive
-    if (abs(height - this->lastHeight) > 0.004)
-      thrust = weight + 0.05 - 0.5 * dest;
-    // Stabilizing state - making drone hover
+    // Take off phase 
+    if (error >= 0.05)
+    {
+      double Pout = offset * error / (dest - 0.05);
+      thrust = weight + Pout; 
+    }
+    // Brake phase
     else
     {
-      thrust = weight;
-      if (error <= -0.05)
-        thrust = weight - 0.025;
-
-      // Action state
-      if (onCenter)
+      // Braking state 
+      // Note: Adjust the threshold to make the brake more sensitive
+      if (abs(height - this->lastHeight) > 0.004)
+        thrust = weight + 0.05 - 0.5 * dest;
+      // Stabilizing state - making drone hover
+      else
       {
-        pitch += 0.05;
-        thrust -= 0.01;
-        if (this->isBrake)
-        {
-          if (pose.position.y > 0)
-            roll = 0.2;
-          else
-            roll = -0.2;
+        thrust = weight;
+        if (error <= -0.05)
+          thrust = weight - 0.025;
 
-          this->isBrake = false;
+        // Action state
+        if (onCenter)
+        {
+          pitch += 0.05;
+          thrust -= 0.01;
+          if (this->isBrake)
+          {
+            if (pose.position.y > 0)
+              roll = 0.2;
+            else
+              roll = -0.2;
+
+            this->isBrake = false;
+          }
+        }
+        // Robot is west of entrance
+        else if (westOfCenter)
+        {
+          roll = -0.05;
+          this->isBrake = true;
+        }
+        else if (eastOfCenter)
+        {
+          roll = 0.05;
+          this->isBrake = true;
         }
       }
-      // Robot is west of entrance
-      else if (westOfCenter)
-      {
-        roll = -0.05;
-        this->isBrake = true;
-      }
-      else if (eastOfCenter)
-      {
-        roll = 0.05;
-        this->isBrake = true;
-      }
     }
-  }
 
-  msg.linear.z = thrust;
-  msg.linear.x = pitch;
-  msg.linear.y = roll;
-  msg.angular.z = yaw;
-  this->velPub.publish(msg);
+    msg.linear.z = thrust;
+    msg.linear.x = pitch;
+    msg.linear.y = roll;
+    msg.angular.z = yaw;
+    this->velPub.publish(msg);
+  }
 }
 
 /////////////////////////////////////////////////
