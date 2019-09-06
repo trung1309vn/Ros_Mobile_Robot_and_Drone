@@ -250,7 +250,7 @@ void Controller::Update()
     double offset = 0.1; // Adding variable to thrust
     double dest = 1.0;
     // Error
-    double error = dest - height;
+    double error = dest - pose.position.z;
     double thrust;
     double pitch = -0.04975;
     double yaw = 0.0;
