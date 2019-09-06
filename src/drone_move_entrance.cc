@@ -307,14 +307,14 @@ void Controller::Update()
     }
 
     ROS_INFO("Delta height: %f", abs(height - this->lastHeight));
-    ROS_INFO("Tick: %d", this->tick);
+    //ROS_INFO("Tick: %d", this->tick);
     this->lastHeight = height;
     
     ROS_INFO("Drone's height: %f", height);
     ROS_INFO("Thrust: %f", thrust);
-    //ROS_INFO("Pitch: %f\n", pitch);
-    //ROS_INFO("Yaw: %f\n", yaw);
-    //ROS_INFO("Roll: %f\n", roll);
+    ROS_INFO("Pitch: %f", pitch);
+    ROS_INFO("Yaw: %f", yaw);
+    ROS_INFO("Roll: %f\n", roll);
     this->lastHeight = height;
 
     msg.linear.z = thrust;
